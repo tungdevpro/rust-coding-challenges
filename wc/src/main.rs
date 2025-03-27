@@ -1,73 +1,32 @@
-use std::{fs::File, io::BufRead};
+use std::{
+    fs::File,
+    io::{BufRead, BufReader},
+};
 
 use clap::{Parser, Subcommand};
 
-fn main() {
+fn main() -> std::io::Result<()> {
     let cli = Cli::parse();
 
     match cli.commands {
-        Commands::C { name } => {
-            let file_contents = std::fs::metadata(&name);
-
-            if file_contents.is_err() {
-                println!("Error reading test text.");
-                return;
-            }
-            println!("{} {}", file_contents.unwrap().len(), name);
-        }
+        Commands::C { name } => match std::fs::metadata(&name) {
+            Ok(meta) => println!("{} {}", meta.len(), name),
+            Err(_) => println!("error read file"),
+        },
         Commands::L { name } => {
-            let file = File::open(&name);
-            if file.is_err() {
-                println!("Erorr open file");
-                return;
-            }
-
-            let file = file.unwrap();
-            let buffered = std::io::BufReader::new(file);
-            let line_count = buffered.lines().count();
-
-            println!("{} {}", line_count, name)
+            let count_line = count_lines(&name)?;
+            println!("{} {}", count_line, name)
         }
         Commands::W { name } => {
-            let file = File::open(&name);
-            if file.is_err() {
-                println!("Erorr open file");
-                return;
-            }
-
-            let file = file.unwrap();
-            let buffered = std::io::BufReader::new(file);
-            let mut word_count = 0;
-
-            for line in buffered.lines() {
-                if line.is_ok() {
-                    let line = line.unwrap();
-                    word_count += line.split_whitespace().count();
-                }
-            }
-
-            println!("{} {}", word_count, name)
+            let count_word = count_words(&name)?;
+            println!("{} {}", count_word, name)
         }
         Commands::M { name } => {
-            let file = File::open(&name);
-            if file.is_err() {
-                println!("Erorr open file");
-                return;
-            }
-
-            let file = file.unwrap();
-            let buffered = std::io::BufReader::new(file);
-            let mut word_count = 0;
-
-            for line in buffered.lines() {
-                if line.is_ok() {
-                    word_count += line.unwrap().chars().count();
-                }
-            }
-
-            println!("{} {}", word_count, name)
+            let count_chars = count_chars(&name)?;
+            println!("{} {}", count_chars, name)
         }
     }
+    Ok(())
 }
 
 #[derive(Debug, Parser)]
@@ -90,4 +49,36 @@ enum Commands {
 
     #[clap(name = "m", short_flag = 'm')]
     M { name: String },
+}
+
+fn open_file(name: &str) -> std::io::Result<BufReader<File>> {
+    let file = File::open(name)?;
+    Ok(BufReader::new(file))
+}
+
+fn count_lines(name: &str) -> std::io::Result<usize> {
+    let file = open_file(name)?;
+    Ok(file.lines().count())
+}
+
+fn count_words(name: &str) -> std::io::Result<usize> {
+    let file = open_file(name)?;
+    let mut count = 0;
+
+    for line in file.lines() {
+        count += line?.split_whitespace().count();
+    }
+
+    Ok(count)
+}
+
+fn count_chars(name: &str) -> std::io::Result<usize> {
+    let file = open_file(name)?;
+    let mut char_count = 0;
+
+    for line in file.lines() {
+        char_count += line?.chars().count();
+    }
+
+    Ok(char_count)
 }
